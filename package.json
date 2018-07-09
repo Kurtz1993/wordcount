@@ -1,0 +1,22 @@
+{
+  "name": "wordcount",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "parcel index.html"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "parcel-bundler": "^1.9.4",
+    "typescript": "^2.9.2"
+  },
+  "dependencies": {
+    "chart.js": "2.7.2",
+    "jszip": "3.1.5",
+    "mime-types": "2.1.18",
+    "randomcolor": "0.5.3"
+  }
+}
