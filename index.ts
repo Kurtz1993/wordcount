@@ -1,81 +1,63 @@
 import "chart.js";
-import JSZip from "jszip";
-import mime from "mime-types";
-import randomColor from "randomcolor";
+import randomColor = require("randomcolor");
 import { TextFile, ZipFile } from "./file-types";
+import { readFile, readZippedFile } from "./utils";
 
-const canvas = document.getElementById("word-count") as HTMLCanvasElement;
+declare const Chart: any;
+
+const canvas = document.getElementById("word-count-chart") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d");
 window["chart"] = null;
 window["filesMap"] = new Map();
 
 document.getElementById("file").addEventListener("change", async event => {
   const target = event.target as HTMLInputElement;
-  const textFiles = Array.from(target.files).filter(
-    file => file.type === TextFile
+  const textFiles = await Promise.all(
+    Array.from(target.files)
+      .filter(file => file.type === TextFile)
+      .map(file => readFile(file))
   );
-  const zipFiles = Array.from(target.files).filter(
-    file => file.type === ZipFile
-  );
+  const zipFiles = (await Promise.all(
+    Array.from(target.files)
+      .filter(file => file.type === ZipFile)
+      .map(file => readZippedFile(file))
+  )).reduce((prev, next) => prev.concat(next), []);
 
-  // const colours = files.map(() => randomColor());
+  const files = textFiles.concat(zipFiles);
 
-  // window.chart = new Chart(ctx, {
-  //   type: "bar",
-  //   data: {
-  //     labels: data.map(record => record.name),
-  //     datasets: [
-  //       {
-  //         label: "# of Words",
-  //         backgroundColor: colours,
-  //         data: data.map(record => record.wordCount),
-  //       },
-  //     ],
-  //   },
-  //   options: {
-  //     responsive: false,
-  //     scales: {
-  //       yAxes: [
-  //         {
-  //           ticks: {
-  //             beginAtZero: true,
-  //           },
-  //         },
-  //       ],
-  //     },
-  //   },
-  // });
-});
+  const colours = files.map(() => randomColor());
+  const labels = files.map(record => record.fileName);
+  const data = files.map(record => record.wordCount);
 
-function readFile(file: File) {
-  const fileReader = new FileReader();
-  fileReader.onload = ev => {
-    window["filesMap"].set(file.name, ev.target.result.split(" ").length);
-  };
-  fileReader.readAsText(file);
-}
-
-async function readZippedFile(zipFile: File) {
-  try {
-    const zip = await JSZip.loadAsync(zipFile);
-    let files = Object.values(zip.files).filter(
-      (file: any) => !file.dir && mime.lookup(file.name) === TextFile
-    );
-
-    for (let i = 0; i < files.length; i++) {
-      let file = files[i] as any;
-
-      const wordCount = await readTextFileInsideZip(zip, file);
-
-      window["filesMap"].set(`${zipFile.name}/${file.name}`, wordCount);
-    }
-  } catch (e) {
-    console.log(e);
+  if (window["chart"]) {
+    window["chart"].data.labels = labels;
+    window["chart"].data.datasets[0].data = data;
+    window["chart"].update();
+  } else {
+    window["chart"] = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "# of Words",
+            backgroundColor: colours,
+            data,
+          },
+        ],
+      },
+      options: {
+        responsive: false,
+        scales: {
+          yAxes: [
+            {
+              ticks: {
+                beginAtZero: true,
+              },
+            },
+          ],
+        },
+      },
+    });
   }
-}
-
-async function readTextFileInsideZip(zip, file): Promise<number> {
-  const content = await zip.file(file.name).async("text");
-
-  return content.split(" ").length;
-}
+});
